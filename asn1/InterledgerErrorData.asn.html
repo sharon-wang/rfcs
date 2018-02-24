@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Payments across payment networks">
 
-    <title>PreSharedKeyV2.asn | Interledger</title>
+    <title>InterledgerErrorData.asn | Interledger</title>
 
     <!-- Bootstrap core CSS -->
     <link href="/css/bootstrap.min.css" rel="stylesheet">
@@ -114,49 +114,25 @@
           </nav>
         </div>
         <div class="col-sm-8 markdown-body">
-                      <pre><code class="nohighlight">PreSharedKeyV2
+                      <pre><code class="nohighlight">InterledgerErrorData
 DEFINITIONS
 AUTOMATIC TAGS ::=
 BEGIN
 
 IMPORTS
-    UInt8,
-    UInt32,
-    UInt64,
-    UInt96,
-    UInt128,
-    VarBytes
+    UInt64
     FROM GenericTypes
 ;
 
-Psk2EncryptionEnvelope ::= SEQUENCE {
-    -- Random nonce
-    initializationVector UInt96,
+-- Each of the following should be included as the `data` field in an ILP Reject packet
 
-    -- Authentication tag (output of AES-GCM encryption)
-    authenticationTag UInt128,
+-- F08: Amount Too Large
+AmountTooLargeErrorData ::= SEQUENCE {
+  -- Local amount received by the connector
+  receivedAmount UInt64,
 
-    -- Encrypted PSK Packet
-    -- Note: This is NOT encoded as a variable length (length-prefixed)
-    -- octet string. The size is constrained by the length of the data
-    -- field in the InterledgerPrepare, InterledgerFulfill, or InterledgerReject
-    -- packet containing this Psk2EncryptionEnvelope
-    cipherText OCTET STRING (SIZE (0..32739))
-}
-
-Psk2Packet ::= SEQUENCE {
-    -- Type ID
-    type UInt8,
-
-    -- ID used to correlate requests and responses
-    requestId UInt32,
-
-    -- In PSK2 Requests, this indicates the minimum the receiver should accept
-    -- In PSK2 Responses and Errors, it is the amount that the receiver got
-    requestAmount UInt64,
-
-    -- Application data carried in the encrypted PSK Request/Response/Error
-    data VarBytes
+  -- Maximum amount (inclusive, denominated in same units as the receivedAmount) the connector will forward
+  maximumAmount UInt64
 }
 
 END
