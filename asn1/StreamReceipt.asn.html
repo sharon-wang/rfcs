@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Payments across payment networks">
 
-    <title>InterledgerTypes.asn | Interledger</title>
+    <title>StreamReceipt.asn | Interledger</title>
 
     <!-- Bootstrap core CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
@@ -172,82 +172,48 @@
 
         <!-- Center -->
         <div class="main col-md-8  col-lg-6   order-md-3  " role="main" id="main_content_body">
-                      <pre><code class="nohighlight">InterledgerTypes
+                      <pre><code class="nohighlight">StreamReceipt
 DEFINITIONS
 AUTOMATIC TAGS ::=
 BEGIN
 
 IMPORTS
-    UInt64
+    UInt8,
+    UInt64,
+    UInt128,
+    UInt256
     FROM GenericTypes
 ;
 
--- Readable names for special characters that may appear in ILP addresses
-hyphen IA5String ::= &quot;-&quot;
-period IA5String ::= &quot;.&quot;
-underscore IA5String ::= &quot;_&quot;
-tilde IA5String ::= &quot;~&quot;
+RECEIPT ::= CLASS {
+  &typeId UInt8 UNIQUE,
+  &Type
+} WITH SYNTAX {&typeId &Type}
 
--- A standard interledger address
-Address ::= IA5String
-    (FROM
-        ( hyphen
-        | period
-        | &quot;0&quot;..&quot;9&quot;
-        | &quot;A&quot;..&quot;Z&quot;
-        | underscore
-        | &quot;a&quot;..&quot;z&quot;
-        | tilde )
-    )
-    (SIZE (0..1023))
+ReceiptSet RECEIPT ::= {
+  {1 ReceiptV1}
+}
 
--- --------------------------------------------------------------------------
+Receipt ::= SEQUENCE {
+  type RECEIPT.&typeId ({ReceiptSet}),
+  -- NOT length-prefixed
+  data RECEIPT.&Type ({ReceiptSet}{@type})
+}
 
--- We are using ISO 8601 and not POSIX time, because ISO 8601 increases
--- monotonically and never &quot;travels back in time&quot; which could cause issues
--- with transfer expiries. It is also one of the most widely supported and most
--- well-defined date formats as of 2017.
---
--- Our actual wire format leaves out any fixed/redundant characters, such as
--- hyphens, colons, the &quot;T&quot; separator, the decimal period and the &quot;Z&quot; timezone
--- indicator.
---
--- The wire format is four digits for the year, two digits for the month,
--- two digits for the day, two digits for the hour, two digits for the minutes,
--- two digits for the seconds and three digits for the milliseconds.
---
--- I.e. the wire format is: &#39;YYYYMMDDHHmmSSfff&#39;
---
--- All times MUST be expressed in UTC time.
+ReceiptV1 ::= SEQUENCE {
+  -- Identifier of the connection
+  nonce UInt128,
 
-Timestamp ::= PrintableString (SIZE(17))
+  -- Identifier of the stream
+  streamId UInt8,
 
--- --------------------------------------------------------------------------
+  -- Total amount the stream has received so far
+  totalReceived UInt64,
 
--- Liquidity curves describe the relationship between input and output amount
--- for a given path between a pair of ledgers.
---
--- The curve is expressed as a series of points given as coordinates of the form
--- &lt;inputAmount, outputAmount&gt;. If a sender sends `inputAmount` units to the
--- connector, the recipient will receive `outputAmount`. The curve may represent
--- the liquidity through a single connector, or multiple liquidity curves can be
--- combined into one to represent the liquidity through a given path of
--- connectors.
---
--- Points are ordered by inputAmount. The inputAmount is strictly increasing
--- from point to point. The outputAmount is monotonically increasing, meaning
--- each successively point must have an equal or greater outputAmount.
---
--- The first point represents the minimum amount that can be transacted, while
--- the final point represents the maximum amount that can be transacted.
---
--- If a query does not match a point exactly, implementations MUST use linear
--- interpolation. When querying by outputAmount, if multiple points match
--- exactly, the lowest inputAmount of any of these points MUST be returned.
-
-LiquidityCurve ::= SEQUENCE OF SEQUENCE {
-  x UInt64,
-  y UInt64
+  -- HMAC-SHA256 using a 32 byte Secret
+  -- The message is the concatenation of the 1 byte type/version (always 1) and all other fields,
+  -- in the order listed above
+  hmac UInt256
 }
 
 END
